@@ -2,7 +2,6 @@ package src;
 
 public class MineSweeperProgram {
     public static void main(String[] args) {
-
         Game game = new Game();
 
         boolean x = game.getCommands();
@@ -20,3 +19,4 @@ public class MineSweeperProgram {
         } while(x);
     }
 }
+

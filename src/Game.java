@@ -9,6 +9,11 @@ public class Game {
     long endTime;
     long elapsedTime;
 
+    private String nickname;
+    private String[] last10Wins;
+    private int winIndex = 0;
+    private int winCount = 0;
+
     void startGame() {
 
         System.out.println("===== MineSwepper Game =====\n");
@@ -38,7 +43,7 @@ public class Game {
                 if(segundaEscolha == 1) {
 
                     System.out.print("Nickname: \n");
-                    String nickname = scannerDois.nextLine();
+                     nickname = scannerDois.nextLine();
                     System.out.println("Your nickname: " + nickname + "\n");
 
                 } else if(segundaEscolha == 2){
@@ -62,12 +67,39 @@ public class Game {
             } while(segundaEscolha > 2);
 
         } else if(escolha == 2) {
-
-
+            displayLast10Wins();
         } else if(escolha == 3) {
-
+            System.out.println("Thank you for playing!\n");
+        }else {
+            System.out.println("You need to choose one of the following options:");
         }
 
+    }
+
+    /**
+     * Registra as ultimas wins para depois serem mostradas com o displayLas10Wins()
+     * @param nickname
+     * @param elapsedTime
+     */
+    private void registerWin(String nickname, long elapsedTime) {
+        String winEntry = "Player: " + nickname + ", Time: " + formatElapsedTime(elapsedTime);
+        last10Wins[winIndex] = winEntry;
+        winIndex = (winIndex + 1) % 10;
+        if (winCount < 10) {
+            winCount++;
+        }
+    }
+    public void displayLast10Wins() {
+        if (winCount == 0) {
+            System.out.println("No wins recorded yet.\n");
+        } else {
+            System.out.println("===== Last 10 Wins =====");
+            for (int i = 0; i < winCount; i++) {
+                int index = (winIndex - winCount + i + 10) % 10;
+                System.out.println((i + 1) + ". " + last10Wins[index]);
+            }
+            System.out.println();
+        }
     }
 
     char[][] tabuleiro = new char[9][9];
@@ -186,49 +218,33 @@ public class Game {
 
     }
 
-    public void calculateProximityValues() { // falta implementar essa método no jogo, ou seja, quando o jogador abrir as celulas, os numeros serem exibidos em vez do *.
+    private char calculateCellProximity(int row, int col) {
+
+        if (tabuleiro[row][col] != '#') {
+
+            return tabuleiro[row][col];
+
+        }
 
         int[] dRow = {-1, -1, -1, 0, 0, 1, 1, 1};
         int[] dCol = {-1, 0, 1, -1, 1, -1, 0, 1};
 
-        for (int row = 0; row < 9; row++) {
+        int mineCount = 0;
 
-            for (int col = 0; col < 9; col++) {
+        for (int i = 0; i < 8; i++) {
 
-                if (tabuleiro[row][col] == 'X') {
+            int newRow = row + dRow[i];
+            int newCol = col + dCol[i];
 
-                    for (int i = 0; i < 8; i++) {
+            if (newRow >= 0 && newRow < 9 && newCol >= 0 && newCol < 9 && tabuleiro[newRow][newCol] == 'X') {
 
-                        int newRow = row + dRow[i];
-                        int newCol = col + dCol[i];
-
-                        if (newRow >= 0 && newRow < 9 && newCol >= 0 && newCol < 9 && tabuleiro[newRow][newCol] != 'X') {
-
-                            if (tabuleiro[newRow][newCol] == '#') {
-                                tabuleiro[newRow][newCol] = '1';
-
-                            } else {
-
-                                tabuleiro[newRow][newCol]++;
-                            }
-
-                        }
-
-                    }
-
-                }
+                mineCount++;
 
             }
 
         }
 
-    }
-
-    private char calculateDisplayValue(int row, int col) {
-
-        char value = tabuleiro[row][col];
-
-        return (value == '#') ? ' ' : value;
+        return (mineCount > 0) ? (char) ('0' + mineCount) : ' ';
 
     }
 
@@ -262,31 +278,40 @@ public class Game {
             if (tabuleiro[row][col] == 'X') {
 
                 minesPlacedFlag = false;
-
-                if(minesPlacedFlag == false) {
-
-                    endTime = System.currentTimeMillis();
-                    elapsedTime = endTime - startTime;
-                    System.out.println("You hit a mine! Game over. Time elapsed: " + formatElapsedTime(elapsedTime) + "\n");
-
-                }
+                endTime = System.currentTimeMillis();
+                elapsedTime = endTime - startTime;
+                System.out.println("You hit a mine! Game over. Time elapsed: " + formatElapsedTime(elapsedTime) + "\n");
                 startGame();
+                initializeBoard();
                 displayBoard();
+                registerWin(nickname, elapsedTime);
 
             } else if (tabuleiro[row][col] == '#') {
 
-                tabuleiro[row][col] = '*';
+                tabuleiro[row][col] = calculateCellProximity(row, col);
                 System.out.println("Cell opened!\n");
                 displayBoard();
 
-            } else if(tabuleiro[row][col] == 'F') {
+
+            } else if (tabuleiro[row][col] == 'F') {
 
                 System.out.println("This cell contains a flag.");
 
+            } else if(checkWinCondition()) {
+                endTime = System.currentTimeMillis();
+                elapsedTime = endTime - startTime;
+                System.out.println("Congratulations! You cleared the board in: " + formatElapsedTime(elapsedTime) + "\n");
+
+                // Registrar vitória
+                registerWin(nickname, elapsedTime);
+
+                // Reinicia o jogo
+                startGame();
+                initializeBoard();
+                displayBoard();
+
             } else {
-
                 System.out.println("Cell already opened.");
-
             }
 
         } catch (Exception e) {
@@ -296,6 +321,20 @@ public class Game {
 
         }
 
+    }
+    private boolean checkWinCondition() {
+        for (int row = 0; row < tabuleiro.length; row++) {
+            for (int col = 0; col < tabuleiro[row].length; col++) {
+                if (tabuleiro[row][col] == '#' && !isMine(row, col)) {
+                    return false; // Ainda existem células seguras fechadas
+                }
+            }
+        }
+        return true; // Todas as células seguras foram abertas
+    }
+
+    private boolean isMine(int row, int col) {
+        return tabuleiro[row][col] == 'X';
     }
 
     public void Hint() {
@@ -466,16 +505,20 @@ public class Game {
     }
 
     private String formatElapsedTime(long elapsedTime) {
-        long seconds = elapsedTime / 1000; // Converte para segundos
-        long minutes = seconds / 60; // Calcula os minutos
-        seconds %= 60; // Resto são os segundos
+
+        long seconds = elapsedTime / 1000;
+        long minutes = seconds / 60;
+        seconds %= 60;
         return String.format("%02d:%02d", minutes, seconds);
+
     }
 
     public void showElapsedTime() {
+
         long currentTime = System.currentTimeMillis();
         long elapsedTime = currentTime - startTime;
         System.out.println("Current game time: " + formatElapsedTime(elapsedTime));
+
     }
 
 }
